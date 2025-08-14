@@ -1,0 +1,260 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="{% if request.LANGUAGE_CODE == 'ar' %}ar{% else %}en{% endif %}" 
+      dir="{% if request.LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BookingPro - Premium Booking System{% endblock %}</title>
+    
+    {% load static i18n %}
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* RTL Support */
+        [dir="rtl"] .rtl\:flex-row-reverse {
+            flex-direction: row-reverse;
+        }
+        
+        /* Premium Gradient */
+        .gradient-premium {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        /* Glass Effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Animation */
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <a href="{% url 'home' %}" class="flex items-center space-x-3">
+                        <div class="w-10 h-10 gradient-premium rounded-lg flex items-center justify-center">
+                            <i class="fas fa-calendar-check text-white"></i>
+                        </div>
+                        <span class="text-xl font-bold text-gray-800">BookingPro</span>
+                    </a>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'dashboard:home' %}" class="text-gray-600 hover:text-purple-600 transition">
+                            <i class="fas fa-tachometer-alt mr-2"></i>{% trans "Dashboard" %}
+                        </a>
+                        
+                        {% if user.role in 'BUSINESS_ADMIN,BUSINESS_STAFF' %}
+                            <a href="{% url 'dashboard:bookings' %}" class="text-gray-600 hover:text-purple-600 transition">
+                                <i class="fas fa-calendar mr-2"></i>{% trans "Bookings" %}
+                            </a>
+                            <a href="{% url 'dashboard:customers' %}" class="text-gray-600 hover:text-purple-600 transition">
+                                <i class="fas fa-users mr-2"></i>{% trans "Customers" %}
+                            </a>
+                        {% endif %}
+                        
+                        <!-- User Dropdown -->
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" class="flex items-center space-x-2 text-gray-700 hover:text-purple-600">
+                                {% if user.avatar %}
+                                    <img src="{{ user.avatar.url }}" class="w-8 h-8 rounded-full">
+                                {% else %}
+                                    <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white">
+                                        {{ user.first_name.0 }}{{ user.last_name.0 }}
+                                    </div>
+                                {% endif %}
+                                <span>{{ user.get_full_name }}</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            
+                            <div x-show="open" @click.away="open = false" 
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2">
+                                <a href="{% url 'accounts:profile' %}" class="block px-4 py-2 text-gray-700 hover:bg-purple-50">
+                                    <i class="fas fa-user mr-2"></i>{% trans "Profile" %}
+                                </a>
+                                <a href="{% url 'accounts:settings' %}" class="block px-4 py-2 text-gray-700 hover:bg-purple-50">
+                                    <i class="fas fa-cog mr-2"></i>{% trans "Settings" %}
+                                </a>
+                                <hr class="my-2">
+                                <a href="{% url 'accounts:logout' %}" class="block px-4 py-2 text-gray-700 hover:bg-purple-50">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>{% trans "Logout" %}
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'accounts:login' %}" class="text-gray-600 hover:text-purple-600 transition">
+                            {% trans "Login" %}
+                        </a>
+                        <a href="{% url 'accounts:signup' %}" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition">
+                            {% trans "Sign Up" %}
+                        </a>
+                    {% endif %}
+                    
+                    <!-- Language Switcher -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center space-x-1 text-gray-600 hover:text-purple-600">
+                            <i class="fas fa-globe"></i>
+                            <span>{% get_current_language as LANGUAGE_CODE %}{{ LANGUAGE_CODE|upper }}</span>
+                        </button>
+                        
+                        <div x-show="open" @click.away="open = false" 
+                             class="absolute right-0 mt-2 w-32 bg-white rounded-lg shadow-lg py-2">
+                            {% get_available_languages as LANGUAGES %}
+                            {% for lang_code, lang_name in LANGUAGES %}
+                                <form method="post" action="{% url 'set_language' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="language" value="{{ lang_code }}">
+                                    <button type="submit" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-purple-50">
+                                        {{ lang_name }}
+                                    </button>
+                                </form>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Mobile Menu Button -->
+                <button class="md:hidden" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars text-2xl text-gray-700"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Messages -->
+    {% if messages %}
+        <div class="container mx-auto px-4 mt-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} bg-{{ message.tags }}-100 border-l-4 border-{{ message.tags }}-500 text-{{ message.tags }}-700 p-4 mb-4 rounded" role="alert">
+                    <p class="font-bold">{{ message.tags|title }}</p>
+                    <p>{{ message }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white mt-20">
+        <div class="container mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Company Info -->
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-calendar-check text-white"></i>
+                        </div>
+                        <span class="text-xl font-bold">BookingPro</span>
+                    </div>
+                    <p class="text-gray-400">
+                        {% trans "Premium booking system for modern businesses. Streamline your appointments and grow your business." %}
+                    </p>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="font-semibold mb-4">{% trans "Quick Links" %}</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "Features" %}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "Pricing" %}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "About Us" %}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "Contact" %}</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Support -->
+                <div>
+                    <h3 class="font-semibold mb-4">{% trans "Support" %}</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "Help Center" %}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "Documentation" %}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "API" %}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{% trans "Terms of Service" %}</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Newsletter -->
+                <div>
+                    <h3 class="font-semibold mb-4">{% trans "Newsletter" %}</h3>
+                    <p class="text-gray-400 mb-4">{% trans "Subscribe to get updates and news" %}</p>
+                    <form class="flex">
+                        <input type="email" placeholder="{% trans 'Your email' %}" 
+                               class="bg-gray-800 text-white px-4 py-2 rounded-l-lg flex-1 focus:outline-none focus:bg-gray-700">
+                        <button type="submit" class="bg-purple-600 px-4 py-2 rounded-r-lg hover:bg-purple-700 transition">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <hr class="border-gray-800 my-8">
+            
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-400">© 2024 BookingPro. {% trans "All rights reserved." %}</p>
+                <div class="flex space-x-4 mt-4 md:mt-0">
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-instagram"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Alpine.js for interactions -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    
+    <!-- jQuery (for some plugins) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            // Implementation for mobile menu
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!-- templates/dashboard/calendar.html -->
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Calendar" %} - BookingPro{% endblock %}
+
+{% block extra_css %}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+<style>
+    .fc-event {
+        cursor: pointer;
+        padding: 2px 5px;
+        border-radius: 4px;
+    }
+    
+    .fc-daygrid-event {
+        white-space: normal;
+    }
+    
+    #calendar {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">{% trans "Booking Calendar" %}</h1>
+            <p class="text-gray-600 mt-2">{% trans "Manage all your appointments in one place" %}</p>
+        </div>
+        
+        <button onclick="openNewBookingModal()" 
+                class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition flex items-center">
+            <i class="fas fa-plus mr-2"></i>
+            {% trans "New Booking" %}
+        </button>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{% trans "Service" %}</label>
+                <select id="filterService" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                    <option value="">{% trans "All Services" %}</option>
+                    {% for service in business.services.all %}
+                        <option value="{{ service.id }}">{{ service.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{% trans "Staff" %}</label>
+                <select id="filterStaff" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                    <option value="">{% trans "All Staff" %}</option>
+                    {% for staff in business.businessstaff_set.all %}
+                        <option value="{{ staff.id }}">{{ staff.user.get_full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{% trans "Status" %}</label>
+                <select id="filterStatus" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                    <option value="">{% trans "All Status" %}</option>
+                    <option value="PENDING">{% trans "Pending" %}</option>
+                    <option value="CONFIRMED">{% trans "Confirmed" %}</option>
+                    <option value="COMPLETED">{% trans "Completed" %}</option>
+                    <option value="CANCELLED">{% trans "Cancelled" %}</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{% trans "View" %}</label>
+                <select id="calendarView" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500">
+                    <option value="dayGridMonth">{% trans "Month" %}</option>
+                    <option value="timeGridWeek">{% trans "Week" %}</option>
+                    <option value="timeGridDay">{% trans "Day" %}</option>
+                    <option value="listWeek">{% trans "List" %}</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Calendar -->
+    <div id="calendar"></div>
+    
+    <!-- Booking Details Modal -->
+    <div id="bookingModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+            
+            <div class="relative bg-white rounded-lg max-w-2xl w-full">
+                <div class="px-6 py-4 border-b">
+                    <h3 class="text-lg font-semibold text-gray-900">{% trans "Booking Details" %}</h3>
+                    <button onclick="closeBookingModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="px-6 py-4">
+                    <div id="bookingDetails"></div>
+                </div>
+                
+                <div class="px-6 py-4 border-t flex justify-end space-x-3">
+                    <button onclick="editBooking()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-edit mr-2"></i>{% trans "Edit" %}
+                    </button>
+                    <button onclick="cancelBooking()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        <i class="fas fa-times mr-2"></i>{% trans "Cancel" %}
+                    </button>
+                    <button onclick="closeBookingModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                        {% trans "Close" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.8/index.global.min.js'></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var events = {{ events|safe }};
+        
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            },
+            events: events,
+            editable: true,
+            droppable: true,
+            selectable: true,
+            selectMirror: true,
+            eventClick: function(info) {
+                showBookingDetails(info.event);
+            },
+            select: function(info) {
+                openNewBookingModal(info.start, info.end);
+            },
+            eventDrop: function(info) {
+                updateBookingTime(info.event);
+            },
+            eventResize: function(info) {
+                updateBookingTime(info.event);
+            },
+            dayMaxEvents: true,
+            businessHours: {
+                daysOfWeek: [1, 2, 3, 4, 5, 6],
+                startTime: '09:00',
+                endTime: '18:00',
+            }
+        });
+        
+        calendar.render();
+        
+        // View change handler
+        document.getElementById('calendarView').addEventListener('change', function() {
+            calendar.changeView(this.value);
+        });
+        
+        // Filter handlers
+        document.getElementById('filterService').addEventListener('change', filterEvents);
+        document.getElementById('filterStaff').addEventListener('change', filterEvents);
+        document.getElementById('filterStatus').addEventListener('change', filterEvents);
+        
+        function filterEvents() {
+            // Implement filtering logic
+            calendar.refetchEvents();
+        }
+    });
+    
+    function showBookingDetails(event) {
+        const modal = document.getElementById('bookingModal');
+        const details = document.getElementById('bookingDetails');
+        
+        details.innerHTML = `
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">{% trans "Service" %}</label>
+                        <p class="text-lg">${event.extendedProps.service}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">{% trans "Status" %}</label>
+                        <p class="text-lg">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(event.extendedProps.status)}">
+                                ${event.extendedProps.status}
+                            </span>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">{% trans "Customer" %}</label>
+                        <p class="text-lg">${event.extendedProps.customer}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">{% trans "Phone" %}</label>
+                        <p class="text-lg">${event.extendedProps.phone}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">{% trans "Date" %}</label>
+                        <p class="text-lg">${event.start.toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">{% trans "Time" %}</label>
+                        <p class="text-lg">${event.start.toLocaleTimeString()} - ${event.end.toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.remove('hidden');
+        window.currentBookingId = event.id;
+    }
+    
+    function closeBookingModal() {
+        document.getElementById('bookingModal').classList.add('hidden');
+    }
+    
+    function getStatusClass(status) {
+        const classes = {
+            'PENDING': 'bg-yellow-100 text-yellow-800',
+            'CONFIRMED': 'bg-green-100 text-green-800',
+            'COMPLETED': 'bg-gray-100 text-gray-800',
+            'CANCELLED': 'bg-red-100 text-red-800',
+        };
+        return classes[status] || 'bg-gray-100 text-gray-800';
+    }
+    
+    function updateBookingTime(event) {
+        // AJAX call to update booking time
+        fetch(`/api/bookings/${event.id}/update-time/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                start: event.start.toISOString(),
+                end: event.end.toISOString()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+            } else {
+                event.revert();
+            }
+        });
+    }
+</script>
+{% endblock %}
